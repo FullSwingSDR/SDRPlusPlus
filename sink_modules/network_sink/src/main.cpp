@@ -54,6 +54,15 @@ public:
         sampleRate = config.conf[_streamName]["sampleRate"];
         stereo = config.conf[_streamName]["stereo"];
         bool startNow = config.conf[_streamName]["listening"];
+        /*
+        try {
+            std::string selectedList = config.conf["selectedList"];
+            printf("Network Selected List: %s\n", selectedList.c_str() );
+        }
+        catch(const std::exception & e){
+            printf("%s\n", e.what());
+        }
+        */
         config.release(true);
 
         netBuf = new int16_t[STREAM_BUFFER_SIZE];
@@ -63,12 +72,16 @@ public:
         monoSink.init(&s2m.out, monoHandler, this);
         stereoSink.init(&packer.out, stereoHandler, this);
 
-
+        /*
         // Create a list of sample rates
         for (int sr = 12000; sr < 200000; sr += 12000) {
             sampleRates.push_back(sr);
         }
         for (int sr = 11025; sr < 192000; sr += 11025) {
+            sampleRates.push_back(sr);
+        }
+        // for ettus:
+        for (int sr = 200000; sr <= 30000000; sr += 100000) {
             sampleRates.push_back(sr);
         }
 
@@ -95,6 +108,7 @@ public:
             srId = _48kId;
             sampleRate = 48000.0;
         }
+         */
         _stream->setSampleRate(sampleRate);
 
         // Start if needed
@@ -131,6 +145,7 @@ public:
         if (ImGui::InputText(CONCAT("##_network_sink_host_", _streamName), hostname, 1023)) {
             config.acquire();
             config.conf[_streamName]["hostname"] = hostname;
+
             config.release(true);
         }
         ImGui::SameLine();
@@ -153,13 +168,17 @@ public:
 
         ImGui::LeftLabel("Samplerate");
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::Combo(CONCAT("##_network_sink_sr_", _streamName), &srId, sampleRatesTxt.c_str())) {
-            sampleRate = sampleRates[srId];
-            _stream->setSampleRate(sampleRate);
-            packer.setSampleCount(sampleRate / 60);
-            config.acquire();
-            config.conf[_streamName]["sampleRate"] = sampleRate;
-            config.release(true);
+        if (ImGui::InputInt(CONCAT("##_network_sink_sr_", _streamName), (int *)&outSampleRate, 1000, 10000)) {
+            if (outSampleRate > 0) { //Prevent 0 and negative values
+                sampleRate = outSampleRate;
+                _stream->setSampleRate(sampleRate);
+                config.acquire();
+                config.conf[_streamName]["sampleRate"] = sampleRate;
+                config.release(true);
+            }
+            else{ // If 0 or below, set it back to what it was
+                outSampleRate = (int) sampleRate;
+            }
         }
 
         if (ImGui::Checkbox(CONCAT("Stereo##_network_sink_stereo_", _streamName), &stereo)) {
@@ -291,6 +310,8 @@ private:
     std::string sampleRatesTxt;
     unsigned int sampleRate = 48000;
     bool stereo = false;
+
+    int outSampleRate;
 
     int16_t* netBuf;
 
