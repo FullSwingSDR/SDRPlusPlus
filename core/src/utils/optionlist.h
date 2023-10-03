@@ -9,9 +9,9 @@ public:
     OptionList() { updateText(); }
 
     void define(const K& key, const std::string& name, const T& value) {
-        if (keyExists(key)) { throw std::runtime_error("Key already exists"); }
-        if (nameExists(name)) { throw std::runtime_error("Name already exists"); }
-        if (valueExists(value)) { throw std::runtime_error("Value already exists"); }
+        if (keyExists(key)) { return; }
+        if (nameExists(name)) { return; }
+        if (valueExists(value)) { return; }
         keys.push_back(key);
         names.push_back(name);
         values.push_back(value);
