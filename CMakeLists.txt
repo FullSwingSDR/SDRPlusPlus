@@ -36,6 +36,7 @@ option(OPT_BUILD_AUDIO_SINK "Build Audio Sink Module (Dependencies: rtaudio)" ON
 option(OPT_BUILD_NETWORK_SINK "Build Audio Sink Module (no dependencies required)" ON)
 option(OPT_BUILD_NEW_PORTAUDIO_SINK "Build the new PortAudio Sink Module (Dependencies: portaudio)" OFF)
 option(OPT_BUILD_PORTAUDIO_SINK "Build PortAudio Sink Module (Dependencies: portaudio)" OFF)
+option(OPT_BUILD_NETWORK_IQ "Build the Network IQ module (no dependencies required)" OFF)
 
 # Decoders
 option(OPT_BUILD_ATV_DECODER "Build ATV decoder (no dependencies required)" ON)
@@ -45,7 +46,6 @@ option(OPT_BUILD_M17_DECODER "Build the M17 decoder module (Dependencies: codec2
 option(OPT_BUILD_METEOR_DEMODULATOR "Build the meteor demodulator module (no dependencies required)" ON)
 option(OPT_BUILD_RADIO "Main audio modulation decoder (AM, FM, SSB, etc...)" ON)
 option(OPT_BUILD_WEATHER_SAT_DECODER "Build the HRPT decoder module (no dependencies required)" OFF)
-option(OPT_BUILD_NETWORK_IQ "Build the Network IQ module (no dependencies required)" ON)
 
 # Misc
 option(OPT_BUILD_DISCORD_PRESENCE "Build the Discord Rich Presence module" ON)
@@ -213,6 +213,10 @@ if (OPT_BUILD_NEW_PORTAUDIO_SINK)
 add_subdirectory("sink_modules/new_portaudio_sink")
 endif (OPT_BUILD_NEW_PORTAUDIO_SINK)
 
+if (OPT_BUILD_NETWORK_IQ)
+add_subdirectory("sink_modules/network_iq")
+endif (OPT_BUILD_NETWORK_IQ)
+
 
 # Decoders
 if (OPT_BUILD_ATV_DECODER)
@@ -242,10 +246,6 @@ endif (OPT_BUILD_RADIO)
 if (OPT_BUILD_WEATHER_SAT_DECODER)
 add_subdirectory("decoder_modules/weather_sat_decoder")
 endif (OPT_BUILD_WEATHER_SAT_DECODER)
-
-if (OPT_BUILD_NETWORK_IQ)
-add_subdirectory("decoder_modules/network_iq")
-endif (OPT_BUILD_NETWORK_IQ)
 
 # Misc
 if (OPT_BUILD_DISCORD_PRESENCE)
