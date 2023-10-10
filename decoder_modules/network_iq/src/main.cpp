@@ -63,6 +63,7 @@ class NetworkIQModule : public ModuleManager::Instance {
       outSampleRate = sampleRate;
       dtId = config.conf[name]["dataType"];
       samplesPerPacket = config.conf[name]["samplesPerPacket"];
+      outSamplesPerPacket = samplesPerPacket;
       packetHeaderId = config.conf[name]["packetHeaderType"];
        
       config.release(true);
@@ -153,7 +154,7 @@ class NetworkIQModule : public ModuleManager::Instance {
         ImGui::LeftLabel("Samples/Packet");
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         if (ImGui::InputInt(CONCAT("##_network_iq_spp_", _this->name), (int *)&_this->outSamplesPerPacket, 1, 10)) {
-            if (_this->outSamplesPerPacket > 0) { //Prevent 0 and negative values
+            if (_this->outSamplesPerPacket > 0 || _this->outSamplesPerPacket <= STREAM_BUFFER_SIZE) { //Prevent 0, negative values, and values above the buffer
                 _this->samplesPerPacket = _this->outSamplesPerPacket;
                 config.acquire();
                 config.conf[_this->name]["samplesPerPacket"] = _this->samplesPerPacket;
@@ -242,40 +243,39 @@ class NetworkIQModule : public ModuleManager::Instance {
         unsigned int floatsPerPacket = _this->samplesPerPacket*2; //2 floats per sample
 
         unsigned int headerSize = _this->packetHeaderId == PACKET_HEADER_64BIT_SEQ ? 8 : 0;
+        printf("Header Size: %d\n", headerSize);
 
         std::lock_guard lck(_this->connMtx);
         if (!_this->conn || !_this->conn->isOpen()) { return; }
 
-        //If stored packets plus new packets aren't greater than samples/packet, store new packets and move on
+        //If stored packets plus new packets aren't greater than samples/packet, store new samples and move on
         if((floatCount + _this->netBufCount) < floatsPerPacket) {
             if(_this->dtId == DATA_TYPE_16BIT_INT){ //If data type is 16bit ints
                 int16_t* netBufInt = (int16_t *) _this->netBuf;
-                volk_32f_s32f_convert_16i(netBufInt + headerSize/2 + _this->netBufCount, dataFloat, 32768.0f, floatCount);
+                volk_32f_s32f_convert_16i(netBufInt + headerSize/sizeof(int16_t) + _this->netBufCount, dataFloat, 32768.0f, floatCount);
             }
             else{ //Else data type is 32bit floats
                 float* netBufFloat = (float *) _this->netBuf;
-                memcpy(netBufFloat + headerSize/4 + _this->netBufCount, dataFloat, headerSize + floatCount*sizeof(float));
+                memcpy(netBufFloat + headerSize/sizeof(float) + _this->netBufCount, dataFloat, headerSize + floatCount*sizeof(float));
             }
             _this->netBufCount += floatCount; // Increase count of stored samples
         }
-        else { //Else if there are enough packets to send
+        else { //Else, there are enough samples to send
             while((floatCount + _this->netBufCount) >= floatsPerPacket){ //Send packets as long as there are enough samples
                 if(_this->dtId == DATA_TYPE_16BIT_INT){ //Convert to 16 bit ints and send
                     int16_t* netBufInt = (int16_t *) _this->netBuf;
-                    volk_32f_s32f_convert_16i(netBufInt  + headerSize/2 + _this->netBufCount, dataFloat, 32768.0f, floatsPerPacket - _this->netBufCount);
+                    volk_32f_s32f_convert_16i(netBufInt  + headerSize/sizeof(int16_t) + _this->netBufCount, dataFloat, 32768.0f, floatsPerPacket - _this->netBufCount);
                     floatCount -= floatsPerPacket - _this->netBufCount; //Adjust float count after copy
                     _this->conn->write(headerSize + (floatsPerPacket * sizeof(int16_t)), (uint8_t*)netBufInt);
-                    floatCount -= floatsPerPacket;
                     _this->netBufCount = 0;
-                    
                 }
                 else{ //Keeps as 32bit floats and send
                     float* netBufFloat = (float *) _this->netBuf;
 
                     //This will put the exact number of samples needed for 1 packet into the netBuf
-                    memcpy(netBufFloat + _this->netBufCount, dataFloat, (floatsPerPacket - _this->netBufCount)*sizeof(float));
+                    memcpy(netBufFloat + headerSize/sizeof(float) + _this->netBufCount, dataFloat, (floatsPerPacket - _this->netBufCount)*sizeof(float));
                     floatCount -= floatsPerPacket - _this->netBufCount; //Adjust float count after copy
-                    _this->conn->write(headerSize/4 + (floatsPerPacket * sizeof(float)), (uint8_t*)netBufFloat);
+                    _this->conn->write(headerSize + (floatsPerPacket * sizeof(float)), (uint8_t*)netBufFloat);
                     _this->netBufCount = 0;
                 }
                 if(_this->packetHeaderId == PACKET_HEADER_64BIT_SEQ){ //Increment the header if it's being used.
@@ -283,7 +283,7 @@ class NetworkIQModule : public ModuleManager::Instance {
                     seq_buf[0] += 1;
                 }
             }
-            if(floatCount > 0){ // There won't be enough samples tp send on the network, store any remaining in the netbuf
+            if(floatCount > 0){ // There won't be enough samples to send on the network, store any remaining in the netbuf
                 if(_this->dtId == DATA_TYPE_16BIT_INT) {
                     int16_t* netBufInt = (int16_t *) _this->netBuf;
                     volk_32f_s32f_convert_16i(netBufInt  + headerSize/2 + _this->netBufCount, dataFloat, 32768.0f, floatCount);
@@ -291,7 +291,7 @@ class NetworkIQModule : public ModuleManager::Instance {
                 }
                 else{
                     float* netBufFloat = (float *) _this->netBuf;
-                    memcpy(netBufFloat + _this->netBufCount, dataFloat, floatCount*sizeof(float));
+                    memcpy(netBufFloat + headerSize/sizeof(float) + _this->netBufCount, dataFloat, floatCount*sizeof(float));
                     _this->netBufCount = floatCount;
                 }
             }
@@ -324,7 +324,7 @@ class NetworkIQModule : public ModuleManager::Instance {
     dsp::sink::Handler<dsp::complex_t> sink;
 
     char hostname[1024];
-    int port = 4242;
+    int port = 7355;
 
     unsigned int sampleRate = 48000;
     int outSampleRate = sampleRate;
