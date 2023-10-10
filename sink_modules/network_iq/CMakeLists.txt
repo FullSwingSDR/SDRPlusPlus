@@ -5,4 +5,4 @@ file(GLOB_RECURSE SRC "src/*.cpp" "src/*.c")
 
 include(${SDRPP_MODULE_CMAKE})
 
-target_include_directories(network_iq PRIVATE "src/")
+target_include_directories(network_iq PRIVATE "src")
