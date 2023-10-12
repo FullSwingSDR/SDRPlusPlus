@@ -154,7 +154,7 @@ class NetworkIQModule : public ModuleManager::Instance {
         ImGui::LeftLabel("Samples/Packet");
         ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
         if (ImGui::InputInt(CONCAT("##_network_iq_spp_", _this->name), (int *)&_this->outSamplesPerPacket, 1, 10)) {
-            if (_this->outSamplesPerPacket > 0 || _this->outSamplesPerPacket <= STREAM_BUFFER_SIZE) { //Prevent 0, negative values, and values above the buffer
+            if (_this->outSamplesPerPacket > 0 && _this->outSamplesPerPacket <= STREAM_BUFFER_SIZE) { //Prevent 0, negative values, and values above the buffer
                 _this->samplesPerPacket = _this->outSamplesPerPacket;
                 config.acquire();
                 config.conf[_this->name]["samplesPerPacket"] = _this->samplesPerPacket;
@@ -235,15 +235,12 @@ class NetworkIQModule : public ModuleManager::Instance {
     }
 
     static void handler(dsp::complex_t *data, int count, void *ctx) {
-        printf("Network IQ Handler Started\n");
         NetworkIQModule* _this = (NetworkIQModule *)ctx;
 
         float* dataFloat = (float*) data;
         int floatCount = count*2; //2 floats per complex
         unsigned int floatsPerPacket = _this->samplesPerPacket*2; //2 floats per sample
-
         unsigned int headerSize = _this->packetHeaderId == PACKET_HEADER_64BIT_SEQ ? 8 : 0;
-        printf("Header Size: %d\n", headerSize);
 
         std::lock_guard lck(_this->connMtx);
         if (!_this->conn || !_this->conn->isOpen()) { return; }
@@ -295,8 +292,7 @@ class NetworkIQModule : public ModuleManager::Instance {
                     _this->netBufCount = floatCount;
                 }
             }
-        }
-        printf("Network IQ Handler Ended\n");
+        };
     }
 
     static void clientHandler(net::Conn client, void* ctx) {

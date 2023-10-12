@@ -356,6 +356,7 @@ Modules in beta are still included in releases for the most part but not enabled
 | network_sink       | Working    | -            | OPT_BUILD_NETWORK_SINK       | ✅              | ✅              | ✅                         |
 | new_portaudio_sink | Beta       | portaudio    | OPT_BUILD_NEW_PORTAUDIO_SINK | ⛔              | ✅              | ⛔                         |
 | portaudio_sink     | Beta       | portaudio    | OPT_BUILD_PORTAUDIO_SINK     | ⛔              | ✅              | ⛔                         |
+| network_iq_sink    | Beta       | -            | OPT_BUILD_NETWORK_IQ         | ⛔              | ⛔              | ⛔                         |
 
 ## Decoders
 
