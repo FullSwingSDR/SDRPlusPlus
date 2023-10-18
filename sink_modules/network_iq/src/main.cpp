@@ -78,10 +78,16 @@ class NetworkIQModule : public ModuleManager::Instance {
     }
 
     ~NetworkIQModule() {
+      sink.stop();
       if (vfo) {
         sigpath::vfoManager.deleteVFO(vfo);
       }
       gui::menu.removeEntry(name);
+      if (this->conn) {
+        this->conn->waitForEnd();
+        this->conn->close();
+      }
+      free(this->netBuf);
     }
 
     void showMenu() {
@@ -218,6 +224,7 @@ class NetworkIQModule : public ModuleManager::Instance {
 
     void startServer() {
         memset(this->netBuf, 0, (STREAM_BUFFER_SIZE+1)*sizeof(dsp::complex_t)); //0 out buffer and 64bit header
+        this->netBufCount = 0;
         if (modeId == SINK_MODE_TCP) {
             listener = net::listen(hostname, port);
             if (listener) {
@@ -322,18 +329,17 @@ class NetworkIQModule : public ModuleManager::Instance {
     char hostname[1024];
     int port = 7355;
 
-    unsigned int sampleRate = 48000;
+    unsigned int sampleRate = 100000;
     int outSampleRate = sampleRate;
 
-    unsigned int samplesPerPacket = 1024;
+    unsigned int samplesPerPacket = 373;
     int outSamplesPerPacket = samplesPerPacket;
 
-    int modeId = 1;
+    int modeId = SINK_MODE_UDP;
 
-    int dtId = 0;
+    int dtId = DATA_TYPE_16BIT_INT;
     
-    int packetHeaderId = 0;
-    unsigned int sequenceNumber = 0;
+    int packetHeaderId = PACKET_HEADER_64BIT_SEQ;
 
     void* netBuf;
     unsigned int netBufCount;
